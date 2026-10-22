@@ -28,5 +28,5 @@ An interactive web-based dashboard built using **Python**, **Streamlit**, **Pand
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/YOUR-USERNAME/YOUR-REPO-NAME.git](https://github.com/YOUR-USERNAME/YOUR-REPO-NAME.git)
-   cd YOUR-REPO-NAME
+   git clone https://github.com/OmniOrder223/it-operations-dashboard.git
+   cd it-operations-dashboard
