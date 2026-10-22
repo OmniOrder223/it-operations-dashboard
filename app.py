@@ -39,7 +39,7 @@ for df in [df_form, df_open]:
 
 # Combine datasets for comprehensive analytics
 df_combined = pd.concat([df_form, df_open], ignore_index=True).drop_duplicates(subset=['Job Id'], keep='first')
-df_combined['Date'] = pd.to_datetime(df_combined['Date'], errors='coerce')
+df_combined['Date_Parsed'] = pd.to_datetime(df_combined['Date'], errors='coerce')
 
 # Split multiple engineers into separate rows for individual workload metrics
 df_engineers = df_combined.assign(Engineer=df_combined['Engineer'].str.split(',')).explode('Engineer')
@@ -56,7 +56,7 @@ selected_status = st.sidebar.selectbox("Ticket Status", status_list)
 engineer_list = ['All'] + sorted(list(df_engineers['Engineer'].dropna().unique()))
 selected_engineer = st.sidebar.selectbox("Assigned Engineer", engineer_list)
 
-# Apply filters
+# Apply global filters for overall charts/metrics
 filtered_df = df_combined.copy()
 filtered_eng = df_engineers.copy()
 
@@ -72,7 +72,7 @@ if selected_engineer != 'All':
 # Header & Key Metrics
 # ---------------------------------------------------------
 st.title("🖥️ IT Operations & Ticket Monitoring Dashboard")
-st.markdown("Real-time tracking of support tickets, engineer performance, and resolution status directly linked to your Google Sheet.")
+st.markdown("Real-time tracking of support tickets, engineer performance, and resolution status.")
 
 st.markdown("---")
 
@@ -129,10 +129,10 @@ col_trend, col_system = st.columns(2)
 
 with col_trend:
     st.subheader("📈 Daily Ticket Trend")
-    df_trend = filtered_df.groupby(filtered_df['Date'].dt.date).size().reset_index(name='Ticket Count')
+    df_trend = filtered_df.groupby(filtered_df['Date_Parsed'].dt.date).size().reset_index(name='Ticket Count')
     fig_trend = px.line(
         df_trend, 
-        x='Date', 
+        x='Date_Parsed', 
         y='Ticket Count', 
         markers=True
     )
@@ -156,12 +156,34 @@ with col_system:
     st.plotly_chart(fig_sys, use_container_width=True)
 
 # ---------------------------------------------------------
-# Detailed Data View
+# Today's Ticket Log Details
 # ---------------------------------------------------------
 st.markdown("---")
-st.subheader("📋 Ticket Log Details")
+st.subheader("📋 Today's Ticket Log Details")
+
+# Determine Today's Date from dataset / system
+today_date = pd.Timestamp.today().normalize()
+
+# Option to toggle between Today's Data and All Data
+view_mode = st.radio("Select View Range for Table Log:", ["Today's Data Only", "All Data"], horizontal=True)
+
+if view_mode == "Today's Data Only":
+    # If the latest entry in sheet is today, use today, otherwise show latest date available
+    latest_date_in_data = filtered_df['Date_Parsed'].max()
+    
+    # Filter for today (or fallback to latest data date if today has no entries)
+    today_df = filtered_df[filtered_df['Date_Parsed'].dt.date == today_date.date()]
+    
+    if today_df.empty and pd.notnull(latest_date_in_data):
+        st.info(f"No tickets found for today ({today_date.strftime('%Y-%m-%d')}). Displaying latest available date ({latest_date_in_data.strftime('%Y-%m-%d')}):")
+        display_df = filtered_df[filtered_df['Date_Parsed'].dt.date == latest_date_in_data.date()]
+    else:
+        display_df = today_df
+else:
+    display_df = filtered_df
+
 st.dataframe(
-    filtered_df[['Job Id', 'Date', 'System Name', 'Reported By', 'Engineer', 'Issue', 'Status']], 
+    display_df[['Job Id', 'Date', 'System Name', 'Reported By', 'Engineer', 'Issue', 'Status']], 
     use_container_width=True,
     hide_index=True
 )
